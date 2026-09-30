@@ -1,0 +1,84 @@
+[build-system]
+# Capped because the backend decides what goes in the wheel; 1.27 first writes License-Expression.
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gatle-ignite"
+dynamic = ["version"]
+description = "A config-driven pytorch-ignite training framework: write your custom functions, not the boilerplate."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+authors = [{ name = "Ryan Wong" }]
+keywords = ["pytorch", "ignite", "training", "framework", "research"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# Ranges, not pins: a library is installed next to whatever else the user already has.
+dependencies = [
+    # The floor is the oldest torch CI tests; the code needs 2.3, for torch.amp.GradScaler("cuda").
+    "torch>=2.4,<3",
+    "pytorch-ignite>=0.4.13,<0.6",
+    "ml_collections>=0.1.1",
+    # The cap is a backstop: torch declares no numpy bound, so pip cannot see an ABI break.
+    "numpy>=1.21,<3",
+    "tqdm>=4.60",
+]
+
+[project.urls]
+Homepage = "https://ryaniswong.com/gatle-ignite/"
+Documentation = "https://ryaniswong.com/gatle-ignite/"
+Repository = "https://github.com/ryanwongsa/gatle-ignite"
+Issues = "https://github.com/ryanwongsa/gatle-ignite/issues"
+Releases = "https://github.com/ryanwongsa/gatle-ignite/releases"
+
+[project.optional-dependencies]
+wandb = ["wandb>=0.16"]
+discord = ["requests>=2.25"]
+# torchvision pins the torch it was built against, so this extra can move torch too.
+examples = ["torchvision>=0.15"]
+
+# Tooling can pin exactly; ruff must, because its output changes between releases.
+dev = ["pytest>=7", "pytest-cov>=4", "ruff==0.15.21"]
+docs = [
+    "mkdocs-material>=9.5,<10",
+    # v2 renamed several handler options; floating below it breaks the build.
+    "mkdocstrings-python>=2,<3",
+    "mkdocstrings>=0.24,<2",
+    "mkdocs-gen-files>=0.5,<1",
+]
+
+[project.scripts]
+gatle-ignite = "gatle_ignite.cli.main:main"
+
+[tool.hatch.version]
+path = "src/gatle_ignite/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gatle_ignite"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: spawns subprocesses (distributed tests)"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests", "examples", "docs"]
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",  # pycodestyle + pyflakes
+    "I",            # import sorting
+    "B",            # bugbear: mutable defaults, unused loop vars, the things that bite
+    "UP",           # pyupgrade
+    "C4",           # comprehensions
+]
+ignore = [
+    "E501",  # line length is handled by the formatter, and the comments here are prose
+]

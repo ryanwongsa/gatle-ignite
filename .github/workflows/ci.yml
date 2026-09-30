@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, dev]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      # Reads the ruff pin from pyproject's [dev] extra; installing the extra would pull torch.
+      - name: Lint
+        run: |
+          RUFF=$(python - <<'PY'
+          import pathlib, tomllib
+          dev = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          print(next(d for d in dev["project"]["optional-dependencies"]["dev"]
+                     if d.startswith("ruff")))
+          PY
+          )
+          echo "pinned linter: $RUFF"
+          pip install "$RUFF"
+          # check first: a lint error should report as a lint error, not as a format diff.
+          ruff check .
+          ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # One entry per leg: an include matching an existing combination merges into it.
+        include:
+          # The ignite floor and the newest ignite; newest stays unpinned so a breaking release shows.
+          - ignite: "0.4.13"
+            python: "3.11"
+          - ignite: "newest"   # unpinned: the top of the range pyproject.toml allows
+            python: "3.11"
+
+          - ignite: "0.5.1"
+            python: "3.9"   # the floor in requires-python; untested is unsupported
+
+          # The torch floor in dependencies; every other leg installs the newest torch.
+          - ignite: "0.5.1"
+            python: "3.11"
+            torch: "2.4.1"
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install (CPU torch)
+        run: |
+          TORCH_SPEC="torch"
+          if [ -n "${{ matrix.torch }}" ]; then TORCH_SPEC="torch==${{ matrix.torch }}"; fi
+          echo "installing $TORCH_SPEC"
+          pip install --index-url https://download.pytorch.org/whl/cpu "$TORCH_SPEC"
+          # "newest" means unpinned: the editable install below resolves it from the
+          # range in pyproject.toml, the same way TORCH_SPEC leaves torch alone.
+          if [ "${{ matrix.ignite }}" != "newest" ]; then
+            pip install "pytorch-ignite==${{ matrix.ignite }}"
+          fi
+          pip install -e ".[dev]"
+          python -c "import torch, numpy, ignite; print('torch', torch.__version__, '| numpy', numpy.__version__, '| ignite', ignite.__version__)"
+      - name: Test
+        run: PYTHONPATH=$(pwd) pytest -q
+      - name: The example must actually train
+        run: gatle-ignite train --config=examples/synthetic/configs/synthetic_v0.py --override max_epochs=2
+
+      # One short epoch each: this asks "does it still run", not "does it still learn".
+      # teacher_student is left out: it trains its teacher first, which is minutes per leg.
+      - name: Every example must still run
+        run: |
+          for ex in classification contrastive diffusion ema gan translation; do
+            echo "::group::$ex"
+            gatle-ignite train --config=examples/$ex/configs/${ex}_v0.py \
+              --override max_epochs=1 --override train_length=2 --override val_length=2
+            echo "::endgroup::"
+          done
+
+      # The only check that build, compile, train and checkpoint are wired through the CLI.
+      # Every batch has one shape, so this compiles once and never exercises recompilation.
+      - name: The compiled path must also train
+        run: |
+          gatle-ignite train --config=examples/classification/configs/classification_v0.py \
+            --override compile=True --override max_epochs=1 \
+            --override train_length=2 --override val_length=2
+
+  # An editable install proves neither that the wheel is complete nor that it works outside the repo.
+  wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Build the wheel
+        run: |
+          pip install "build>=1,<2"
+          python -m build --wheel
+      - name: Install it somewhere else entirely
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch
+          pip install dist/*.whl
+      - name: A project outside the repo must train against it
+        run: |
+          mkdir -p "$RUNNER_TEMP/elsewhere"
+          cp -r examples "$RUNNER_TEMP/elsewhere/"
+          cd "$RUNNER_TEMP/elsewhere"
+          # No PYTHONPATH, no repo checkout on sys.path: only the installed wheel.
+          gatle-ignite train --config=examples/synthetic/configs/synthetic_v0.py --override max_epochs=2
+
+      # hatchling honours .gitignore, so this is the only check that the wheel carries _template.
+      - name: init must work from the wheel, outside the repo
+        run: |
+          cd "$RUNNER_TEMP"
+          gatle-ignite init fromwheel
+          cd fromwheel
+          gatle-ignite train --config=configs/fromwheel_v0.py --override max_epochs=1

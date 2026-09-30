@@ -1,0 +1,61 @@
+name: Docs
+
+on:
+  push:
+    branches: [main, master, dev]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only by default; the deploy job opts into exactly what it needs.
+permissions:
+  contents: read
+
+# Never cancel a deploy in flight: a half-published site is worse than a stale one.
+# Per ref, because a shared group cancels queued PR builds, and a cancelled run fails no check.
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # The generators import gatle_ignite and so torch; the CPU wheel keeps this job fast.
+      - name: Install (CPU torch)
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch
+          pip install -e ".[docs]"
+
+      # No configure-pages: mkdocs reads site_url, and this job has no pages: write to call it.
+      # --strict fails on broken links, dead nav entries, missing snippets and bad identifiers.
+      - name: Build
+        run: mkdocs build --strict
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    # PRs and forks build (so --strict gates the merge) but never publish.
+    if: >-
+      github.repository == 'ryanwongsa/gatle-ignite'
+      && github.ref == 'refs/heads/main'
+      && github.event_name == 'push'
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

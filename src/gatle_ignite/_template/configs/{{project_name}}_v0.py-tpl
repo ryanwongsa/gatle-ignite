@@ -1,0 +1,63 @@
+"""The config IS the experiment: every *_name field is a dotted module path.
+
+To sweep, copy this file to <name>_v1.py rather than edit it: runs are named after the file.
+"""
+
+from pathlib import Path
+
+from configs.base_utils import ckpt_dir
+from gatle_ignite import base_config
+
+IN_DIM = 64
+N_CLASSES = 10
+
+
+def get_config():
+    cfg = base_config()  # pre-fills every optional field; override only what you need
+    cfg.name = Path(__file__).stem  # -> "{{project_name}}_v0". Names the run and its checkpoints.
+    cfg.project_name = "{{project_name}}"
+    cfg.save_dir = ckpt_dir(cfg.name)
+
+    cfg.main_runner = "trainer.{{project_name}}_trainer"
+    cfg.model_name = "models.mlp"
+    cfg.model_params = {"in_dim": IN_DIM, "hidden": 128, "n_classes": N_CLASSES}
+
+    # Batch size lives in each split's params, not at the top level.
+    common = {"in_dim": IN_DIM, "n_classes": N_CLASSES, "bs": 64, "num_workers": 0}
+    cfg.train_ds_name = "dataloaders.synthetic_dataset"
+    cfg.train_ds_params = {**common, "n": 2048, "seed": 0, "shuffle": True, "drop_last": True}
+    cfg.valid_ds_name = "dataloaders.synthetic_dataset"
+    cfg.valid_ds_params = {**common, "n": 512, "seed": 0, "shuffle": False}
+
+    # A weighted sum even with one term, so a second term is one more entry. src_name
+    # selects from the model's output dict, tgt_name from prep_batch's dict.
+    cfg.criterion_name = "gatle_ignite.losses.composite"
+    cfg.criterion_params = {
+        "dict_of_loss_params": {
+            "ce": {
+                "cls_name": "losses.loss_functions.cross_entropy",
+                "loss_params": {"src_name": "logits", "tgt_name": ("targets", "labels")},
+                "weight": 1.0,
+            }
+        }
+    }
+
+    cfg.optimizer_name = "gatle_ignite.optimizers.adamw"
+    cfg.optimizer_params = {"lr": 1e-3, "weight_decay": 0.01}
+    cfg.lr_scheduler = "gatle_ignite.schedulers.warmup_cosine"
+    cfg.lr_scheduler_params = {"warmup_epochs": 1}
+    cfg.max_epochs = 15
+
+    cfg.val_metrics = {
+        "acc": {
+            "cls_name": "metrics.accuracy",
+            "params": {"src_name": "logits", "tgt_name": ("targets", "labels")},
+        }
+    }
+    # score_factor = -1 for a lower-is-better score: checkpointing keeps the max.
+    cfg.score_name = "valid/acc"
+    cfg.score_factor = 1
+
+    cfg.logger_name = ["text"]  # "wandb" and "discord" are also built in
+    cfg.amp_dtype = "fp32"  # "bf16" once you are on a GPU that has it
+    return cfg

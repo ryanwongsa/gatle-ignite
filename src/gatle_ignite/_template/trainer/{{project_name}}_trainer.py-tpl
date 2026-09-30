@@ -1,0 +1,13 @@
+"""It must expose `Trainer`. prep_batch maps a raw batch into two dicts:
+
+  * model_input: splatted into Model.forward, so its keys match that signature
+  * targets: what losses and metrics resolve their tgt_name paths against
+"""
+
+from gatle_ignite import BaseTrainer, to_device
+
+
+class Trainer(BaseTrainer):
+    def prep_batch(self, batch, split="train", **kwargs):
+        x, y = batch
+        return to_device({"model_input": {"x": x}, "targets": {"labels": y}})

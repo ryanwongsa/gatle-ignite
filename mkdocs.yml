@@ -1,0 +1,130 @@
+site_name: gatle-ignite
+site_description: A config-driven pytorch-ignite training framework.
+site_url: https://ryaniswong.com/gatle-ignite/
+repo_url: https://github.com/ryanwongsa/gatle-ignite
+repo_name: ryanwongsa/gatle-ignite
+edit_uri: edit/main/docs/
+copyright: Copyright (c) 2026, Ryan Wong. BSD-3-Clause.
+
+theme:
+  name: material
+  # overrides/main.html adds the noindex tag that keeps this site out of search results.
+  custom_dir: overrides
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep orange
+      accent: deep orange
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep orange
+      accent: deep orange
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+
+# Build scripts in docs_dir, kept off the site; a local .pyc embeds the absolute build path.
+exclude_docs: |
+  gen_reference.py
+  hooks.py
+  __pycache__/
+
+hooks:
+  # A hook, not a gen-files script: gen-files output sits in a temp dir snippets cannot reach.
+  - docs/hooks.py
+
+plugins:
+  - search
+  - gen-files:
+      scripts:
+        - docs/gen_reference.py
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_symbol_type_heading: true
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+            docstring_section_style: table
+            filters: ["!^_"]
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets:
+      # Pages include the real example files, and a renamed one fails the build.
+      base_path: ["."]
+      check_paths: true
+
+# The generators read this code, so `mkdocs serve` rebuilds when it changes.
+watch:
+  - src
+  - examples
+
+nav:
+  - Home: index.md
+  - Start here:
+      - Install: getting-started/install.md
+      - Your first task: getting-started/first-task.md
+      - The CLI: getting-started/cli.md
+  - Build your task:
+      - 1. The dataset: steps/dataset.md
+      - 2. The model: steps/model.md
+      - 3. prep_batch: steps/prep-batch.md
+      - 4. The loss: steps/loss.md
+      - 5. Metrics and scoring: steps/metrics.md
+      - 6. Optimizer and schedule: steps/optimizer.md
+      - 7. Checkpoints and resume: steps/checkpoints.md
+      - 8. Logging: steps/logging.md
+      - 9. Running it: steps/running.md
+  - Reference:
+      - Where things go: reference/where-things-go.md
+      - Templates: templates.md
+      - Config fields: reference/config.md
+      - Entrypoint contracts: reference/contracts.md
+      - Builtins: reference/builtins.md
+      - Secrets and the environment: guide/environment.md
+      - Python API: reference/api.md
+  - When it breaks:
+      - Debugging: debugging.md
+      - Verifying on real hardware: guide/verification.md
+  - Examples:
+      - Synthetic (CPU, no download): examples/synthetic.md
+      - MNIST: examples/mnist.md
+      - Classification (the realistic one): examples/classification.md
+      - GAN (two optimizers): examples/gan.md
+      - Diffusion (eval is not a forward pass): examples/diffusion.md
+      - Contrastive / self-supervised: examples/contrastive.md
+      - Speech translation (seq2seq): examples/translation.md
+      - EMA (extra checkpoint state): examples/ema.md
+      - Teacher-student (a second model): examples/teacher-student.md

@@ -1,0 +1,69 @@
+# {{project_name}}
+
+A [gatle-ignite](https://ryaniswong.com/gatle-ignite/) project. It trains on synthetic data as
+it stands, so check the wiring before you change anything:
+
+```bash
+gatle-ignite config --config=configs/{{project_name}}_v0.py   # validate, no GPU
+gatle-ignite train  --config=configs/{{project_name}}_v0.py   # CPU, seconds
+```
+
+Run commands from this directory: the CLI puts it on `sys.path`, which is what makes
+`models.mlp` resolve.
+
+## The one rule
+
+Every component is a dotted module path in the config, imported at runtime. There is no
+registry: write a module and point a config field at it. Builtins are named the same way:
+
+```python
+cfg.model_name     = "models.mlp"                     # yours
+cfg.optimizer_name = "gatle_ignite.optimizers.adamw"  # built in, same mechanism
+```
+
+## Where things go
+
+One directory per concern. Create only the ones you need: this scaffold ships six.
+
+| You want | Put it in | Named by | Built-in alternative |
+|---|---|---|---|
+| a model | `models/` | `cfg.model_name` | none |
+| a model's parts / method state | `models/model_utils/` | nothing: your model imports it | none |
+| a dataset | `dataloaders/` | `cfg.train_ds_name` | none |
+| a sampler | `dataloaders/data_utils/` | `*_ds_params.sampler_params.cls_name` | none |
+| a collate fn | `dataloaders/data_utils/` | `*_ds_params.collate_fn.cls_name` | none |
+| a vocab / raw data helper | `dataloaders/data_utils/` | nothing: your `get_ds` imports it | none |
+| an augmentation | `augmentation/` | `cfg.aug_name` | none |
+| a loss term | `losses/loss_functions/` | `criterion_params.dict_of_loss_params[k].cls_name` | none |
+| a whole criterion | `losses/` | `cfg.criterion_name` | `gatle_ignite.losses.composite` |
+| a metric | `metrics/` | `{train,val,tester}_metrics[k].cls_name` | none |
+| an optimizer | `optimizer/` | `cfg.optimizer_name` | `gatle_ignite.optimizers.*` |
+| an LR scheduler | `scheduler/` | `cfg.lr_scheduler` | `gatle_ignite.schedulers.*` |
+| a trainer | `trainer/` | `cfg.main_runner` | none |
+| a logger backend | `callbacks/backends/` | a dotted entry in `cfg.logger_name` | `gatle_ignite.callbacks.backends.*` |
+| a script you run by hand | `scripts/` | nothing: you run it | none |
+| an experiment | `configs/` | `--config=` | none |
+
+Copy-paste templates for each of these:
+<https://ryaniswong.com/gatle-ignite/templates/>
+
+## Configs accrete
+
+To sweep, copy `configs/{{project_name}}_v0.py` to `_v1.py` and change what differs. Don't
+edit one in place: its checkpoints and logged run are named after it. Several run in parallel:
+
+```bash
+gatle-ignite train --config=configs/{{project_name}}_v0.py,configs/{{project_name}}_v1.py
+```
+
+## Paths
+
+`configs/base_utils.py` is the only file that knows where things are on disk. Resolve a
+host-dependent path, such as a cluster scratch directory, there once.
+
+## Next
+
+- [Your first task](https://ryaniswong.com/gatle-ignite/getting-started/first-task/): the six files, explained
+- [Build your task](https://ryaniswong.com/gatle-ignite/steps/dataset/): one short page per step, in order
+- [Worked examples](https://ryaniswong.com/gatle-ignite/examples/synthetic/): GAN, diffusion, seq2seq, distillation, EMA, contrastive
+- [Debugging](https://ryaniswong.com/gatle-ignite/debugging/): start with `gatle-ignite config`

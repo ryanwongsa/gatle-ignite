@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+
+<!-- Keeps the docs out of search results. No robots.txt Disallow: a crawler must fetch the page to see this. -->
+{% block extrahead %}
+  {{ super() }}
+  <meta name="robots" content="noindex, nofollow">
+{% endblock %}

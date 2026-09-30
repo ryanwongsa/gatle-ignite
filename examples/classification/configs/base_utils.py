@@ -1,0 +1,12 @@
+"""Project paths, derived here so a config never spells one."""
+
+from pathlib import Path
+
+# configs/base_utils.py -> configs/ -> the project root.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+CHECKPOINTS = PROJECT_ROOT / "checkpoints"
+
+
+def ckpt_dir(name):
+    """save_dir for a run, namespaced by config name so two configs cannot collide."""
+    return str(CHECKPOINTS / name)

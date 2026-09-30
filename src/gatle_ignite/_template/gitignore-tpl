@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+
+# Training output: configs/base_utils.py puts every run under checkpoints/.
+checkpoints/
+wandb/
+
+# Data is never committed.
+data/
