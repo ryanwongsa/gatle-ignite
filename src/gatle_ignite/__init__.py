@@ -1,6 +1,6 @@
 """gatle-ignite: a config-driven pytorch-ignite training framework."""
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 from gatle_ignite.config.base import base_config
 from gatle_ignite.data.helpers import build_dataloader, get_aug, get_dataset

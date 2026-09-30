@@ -1,6 +1,6 @@
 # Status
 
-`gatle-ignite` is **0.4.0**. This page says what has been run and what has not, because "it should
+`gatle-ignite` is **0.4.1**. This page says what has been run and what has not, because "it should
 work" is a weaker claim than "it was run".
 
 ## Verified
